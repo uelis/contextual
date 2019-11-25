@@ -1,4 +1,5 @@
--- This file type-checks constructions from Sections 7 and 8
+-- This file type-checks constructions for contextual types over
+-- a dependent domain language.
 --
 -- It uses Agda-flat:
 -- https://github.com/agda/agda/tree/391734cff42587535068b5bee073bdb93b18f8d0
@@ -74,26 +75,26 @@ var {c} a =
 
 
 
-record ElTm {c : Ctx} (a : Ty c) (γ : El c) : Set
-record ElTm {c} a γ where
-  constructor mkElTm
+record I {c : Ctx} (a : Ty c) (γ : El c) : Set
+record I {c} a γ where
+  constructor mkI
   field value : El (cons c a)
         prf : p value ≡ γ
 
-pair : {c : Ctx} -> {a : Ty c} -> (γ : El c) -> ElTm a γ -> El (cons c a)
-pair γ x = ElTm.value x
+pair : {c : Ctx} -> {a : Ty c} -> (γ : El c) -> I a γ -> El (cons c a)
+pair γ x = I.value x
 
-p' : {c : Ctx} -> {a : Ty c} -> (γ : El (cons c a)) -> ElTm a (p γ)
+p' : {c : Ctx} -> {a : Ty c} -> (γ : El (cons c a)) -> I a (p γ)
 p' γ = record { value = γ; prf = refl }
 
 -- A few standard properties of pairing and projections.
-pair_beta1 : {c : Ctx} -> {a : Ty c} -> (γ : El c) -> (t : ElTm a γ) -> p (pair γ t) ≡ γ
-pair_beta1 γ t = ElTm.prf t
+pair_beta1 : {c : Ctx} -> {a : Ty c} -> (γ : El c) -> (t : I a γ) -> p (pair γ t) ≡ γ
+pair_beta1 γ t = I.prf t
 
-pair_beta2 : {c : Ctx} -> {a : Ty c} -> (γ : El c) -> (t : ElTm a γ) ->
-  eq_rec (λ γ -> ElTm a γ) (p' (pair γ t)) (pair_beta1 γ t) ≡ t
+pair_beta2 : {c : Ctx} -> {a : Ty c} -> (γ : El c) -> (t : I a γ) ->
+  eq_rec (λ γ -> I a γ) (p' (pair γ t)) (pair_beta1 γ t) ≡ t
   -- With extensional equality, this would be: p' (pair γ t) = t
-pair_beta2 γ (mkElTm v refl) = refl
+pair_beta2 γ (mkI v refl) = refl
 
 pair_eta : {c : Ctx} -> {a : Ty c} -> (γ : El (cons c a)) -> pair (p γ) (p' γ) ≡ γ
 pair_eta γ = refl
@@ -102,51 +103,51 @@ pair_eta γ = refl
 -- Representation of terms.
 -- In the paper, the following type is written as `Tm c a'
 _⊢_ : (c :{♭} Ctx) -> (a :{♭} Ty c) -> Set
-c ⊢ a = ((γ : El c)  -> ElTm a γ)
+c ⊢ a = ((γ : El c)  -> I a γ)
 
 -- We note: The type (c ⊢ a) is isormophic to the terms of type a defined by sections.
 iso_Tm_⊢ : {c :{♭} Ctx} -> {a :{♭} Ty c} -> Tm0 a -> (c ⊢ a)
 iso_Tm_⊢ t gamma = record { value = Sigma.fst t gamma; prf = Sigma.snd t _ }
 
 iso_⊢_Tm :  {c :{♭} Ctx} -> {a :{♭} Ty c} -> (c ⊢ a) -> Tm0 a
-iso_⊢_Tm f = (λ gamma -> ElTm.value (f gamma)), (λ x -> ElTm.prf (f x))
+iso_⊢_Tm f = (λ gamma -> I.value (f gamma)), (λ x -> I.prf (f x))
 
 -- Short notation for substitution with terms of the form (c ⊢a).
 subt : {c :{♭} Ctx} -> {a :{♭} Ty c} -> Ty (cons c a) -> (c ⊢ a) -> Ty c
 subt b t = sub b (λ γ -> pair γ (t γ))
 
--- Relate type substitition to contexts
-subElTm : {c d : Ctx} -> {a : Ty c} -> {f : El d -> El c} -> {gamma : _} ->
-        ElTm a (f gamma) -> ElTm (sub a f) gamma
-subElTm {c} {d} {a} {f} {gamma} t =
-  let z = pq_pullback _ _ _ f gamma (ElTm.value t) (ElTm.prf t) in
+-- Relate type substitution to contexts
+subI : {c d : Ctx} -> {a : Ty c} -> {f : El d -> El c} -> {gamma : _} ->
+        I a (f gamma) -> I (sub a f) gamma
+subI {c} {d} {a} {f} {gamma} t =
+  let z = pq_pullback _ _ _ f gamma (I.value t) (I.prf t) in
   let s = Sigma.fst z in
   let Hs = Sigma.snd z in
     record { value = s ; prf = Product.proj₁ Hs }
 
 -- Relate type substitition to contexts
-subElTm_inv : {c d : Ctx} -> {a : Ty c} -> {f : El d -> El c} -> {gamma : _} ->
-        ElTm (sub a f) gamma -> ElTm a (f gamma)
-subElTm_inv {c} {d} {a} {f} {gamma} t =
-  record { value = q _ _ (ElTm.value t); prf = trans u1 u2 }
+subI_inv : {c d : Ctx} -> {a : Ty c} -> {f : El d -> El c} -> {gamma : _} ->
+        I (sub a f) gamma -> I a (f gamma)
+subI_inv {c} {d} {a} {f} {gamma} t =
+  record { value = q _ _ (I.value t); prf = trans u1 u2 }
     where
-      u1 : p (q _ f (ElTm.value t)) ≡ f (p (ElTm.value t))
+      u1 : p (q _ f (I.value t)) ≡ f (p (I.value t))
       u1 = pq_commutes _ _ _ _ _
-      u2 : f (p (ElTm.value t)) ≡ f gamma
-      u2 rewrite (ElTm.prf t) = refl
+      u2 : f (p (I.value t)) ≡ f gamma
+      u2 rewrite (I.prf t) = refl
 
 -- Example use: weakening
 weak : {c :{♭} Ctx} -> {a b :{♭} Ty c} -> (c ⊢ b) -> (cons c a ⊢ sub b p)
-weak x = λ γ -> subElTm (x (p γ))
+weak x = λ γ -> subI (x (p γ))
 
 
 -- Dependent Products in the index category
 postulate
   Π : {c : Ctx} -> (a : Ty c) -> (b : Ty (cons c a)) -> Ty c
   prod_elim : {c : Ctx} -> {a : Ty c} -> {b : _} -> {gamma : _} ->
-     (f : ElTm (Π a b) gamma) -> (x : ElTm a gamma) -> ElTm b (ElTm.value x)
+     (f : I (Π a b) gamma) -> (x : I a gamma) -> I b (I.value x)
   prod_intro : {c : Ctx} -> {a : Ty c} -> {b : _} -> {gamma : _} ->
-     ((x : ElTm a gamma) -> ElTm b (pair gamma x)) -> ElTm (Π a b) gamma
+     ((x : I a gamma) -> I b (pair gamma x)) -> I (Π a b) gamma
   beck_chevalley : {c d : Ctx} -> {a : Ty c} -> {b : Ty (cons c a)} -> (f : El d -> El c) ->
       sub (Π a b) f ≡ Π (sub a f) (sub b (q a f))
 
@@ -154,28 +155,28 @@ postulate
 -- Example object-level encoding
 postulate
   tp : {c : Ctx} -> Ty c
-  o : {c : Ctx } -> (γ : El c) -> ElTm tp γ
-  arr : {c : Ctx} -> {γ : El c} -> ElTm tp γ -> ElTm tp γ -> ElTm tp γ
+  o : {c : Ctx } -> (γ : El c) -> I tp γ
+  arr : {c : Ctx} -> {γ : El c} -> I tp γ -> I tp γ -> I tp γ
 
   tm : {c : Ctx} -> Ty (cons c tp)
-  app : {c :{♭} Ctx} -> {γ : El c} -> {a b : ElTm tp γ} ->
-          ElTm tm (pair γ (arr a b)) -> ElTm tm (pair γ a) -> ElTm tm (pair γ b)
-  lam : {c : Ctx} -> {γ : El c} -> {a b : ElTm tp γ} ->
-          (ElTm tm (pair γ a) -> ElTm tm (pair γ b)) -> ElTm tm (pair γ (arr a b))
+  app : {c :{♭} Ctx} -> {γ : El c} -> {a b : I tp γ} ->
+          I tm (pair γ (arr a b)) -> I tm (pair γ a) -> I tm (pair γ b)
+  lam : {c : Ctx} -> {γ : El c} -> {a b : I tp γ} ->
+          (I tm (pair γ a) -> I tm (pair γ b)) -> I tm (pair γ (arr a b))
 
-  rec_tm : {A : {psi :{♭} Ctx} -> {γ : El psi} -> (a : ElTm tp γ) -> (x : ElTm tm (pair γ a)) -> Set} ->
+  rec_tm : {A : {psi :{♭} Ctx} -> {γ : El psi} -> (a : I tp γ) -> (x : I tm (pair γ a)) -> Set} ->
               -- input
             {phi :{♭} Ctx} ->
             {γ :{♭} El phi} ->
-            (a :{♭} ElTm tp γ) ->
-            (u :{♭} ElTm tm (pair γ a)) ->
+            (a :{♭} I tp γ) ->
+            (u :{♭} I tm (pair γ a)) ->
             -- variables
-            ((phi :{♭} Ctx) -> (γ : El phi) -> (b : ElTm tp γ) -> (x : ElTm tm (pair γ b)) -> A b x) ->
+            ((phi :{♭} Ctx) -> (γ : El phi) -> (b : I tp γ) -> (x : I tm (pair γ b)) -> A b x) ->
             -- application
-            ((phi :{♭} Ctx) -> (γ : El phi) -> (b c : ElTm tp γ) -> (x : ElTm tm (pair γ (arr b c))) -> (y : ElTm tm (pair γ b)) ->
+            ((phi :{♭} Ctx) -> (γ : El phi) -> (b c : I tp γ) -> (x : I tm (pair γ (arr b c))) -> (y : I tm (pair γ b)) ->
                  A (arr b c) x -> A b y -> A c (app x y)) ->
             -- abstraction
-            ((phi :{♭} Ctx) -> (γ : El phi) -> (b c : ElTm tp γ) -> (f : (x : ElTm tm (pair γ b)) -> ElTm tm (pair γ c)) ->
+            ((phi :{♭} Ctx) -> (γ : El phi) -> (b c : I tp γ) -> (f : (x : I tm (pair γ b)) -> I tm (pair γ c)) ->
                     ((x : _) -> (ih : A b x) -> A c (f x)) -> A (arr b c) (lam f)) ->
             -- result
             A a u
@@ -188,7 +189,7 @@ tpI : {c :{♭} Ctx} -> Ty c
 tpI = tp
 
 tmI : {c :{♭} Ctx} -> (c ⊢ tp) -> Ty c
-tmI t = sub tm (λ γ -> ElTm.value (t γ))
+tmI t = sub tm (λ γ -> I.value (t γ))
 
 prodI : {c :{♭} Ctx} -> (a :{♭} Ty c) -> (b : Ty (cons c a)) -> Ty c
 prodI a b = Π a b
@@ -198,7 +199,7 @@ prodI a b = Π a b
 ----------------------------------
 
 varI : {c :{♭} Ctx} -> {a :{♭} Ty c} -> cons c a ⊢ (sub a p)
-varI = λ γ -> subElTm (p' γ)
+varI = λ γ -> subI (p' γ)
 
 absI : {c :{♭} Ctx} -> {a :{♭} Ty c} -> {b :{♭} Ty (cons c a)}
          -> cons c a ⊢ b
@@ -208,21 +209,21 @@ absI t = λ γ -> prod_intro (λ x -> t (pair γ x))
 appI : {c :{♭} Ctx} -> {a :{♭} Ty c} -> {b :{♭} Ty (cons c a)}
          -> c ⊢ (Π a b)
          -> (s :{♭} c ⊢ a)
-         -> c ⊢ (sub b (λ γ -> ElTm.value (s γ)))
-appI t s = λ γ -> subElTm (prod_elim (t γ) (s γ))
+         -> c ⊢ (sub b (λ γ -> I.value (s γ)))
+appI t s = λ γ -> subI (prod_elim (t γ) (s γ))
 
 esubI : {c d :{♭} Ctx} -> {a :{♭} Ty c} -> {b :{♭} Ty (cons c a)}
          -> (sigma :{♭} El d -> El c)
          -> (x :{♭} c ⊢ a)
          -> d ⊢ sub a sigma
-esubI sigma x = λ δ -> subElTm (x (sigma δ))
+esubI sigma x = λ δ -> subI (x (sigma δ))
 
 constarrI : {c :{♭} Ctx} -> c ⊢ tp -> c ⊢ tp -> c ⊢ tp
 constarrI a b = λ γ -> arr (a γ) (b γ)
 
 constappI : {c :{♭} Ctx} -> (a :{♭} c ⊢ tp) -> (b :{♭} c ⊢ tp) ->
     c ⊢ (subt tm (constarrI a b))  ->  c ⊢ subt tm a ->  c ⊢ subt tm b
-constappI a b x y = λ γ -> subElTm (app (subElTm_inv (x γ)) (subElTm_inv (y γ)))
+constappI a b x y = λ γ -> subI (app (subI_inv (x γ)) (subI_inv (y γ)))
 
 -- We omit the constant for lam, since its type requires either the use
 -- of an eliminator for the identity type or extensional identity types.
@@ -232,7 +233,7 @@ constappI a b x y = λ γ -> subElTm (app (subElTm_inv (x γ)) (subElTm_inv (y �
 -- the definition of lam here. Up to the issue with weakening, it is as
 -- the interpretation of application.
 -- constlamI : {c :{♭} Ctx} -> (a :{♭} c ⊢ tp) -> (b :{♭} c ⊢ tp) ->
---     (cons c (subt tm a) ⊢ subt tm (λ γ -> subElTm p _ (b (p γ)))) -> (c ⊢ subt tm (constarrI a b))
+--     (cons c (subt tm a) ⊢ subt tm (λ γ -> subI p _ (b (p γ)))) -> (c ⊢ subt tm (constarrI a b))
 
 
 ------------------------------------------
@@ -252,4 +253,4 @@ subsWeakI sigma = λ phi_x -> sigma (p phi_x)
 subsPairI : {c d :{♭} Ctx} -> {a :{♭} Ty d} ->
             (sigma :{♭} El c -> El d) ->  c ⊢ sub a sigma  ->
             (El c -> El (cons d a))
-subsPairI sigma t = λ γ -> ElTm.value (subElTm_inv (t γ))
+subsPairI sigma t = λ γ -> I.value (subI_inv (t γ))
