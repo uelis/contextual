@@ -1,4 +1,5 @@
--- This file type-checks constructions from Sections 3 and 4
+-- This file type-checks constructions for contextual types over
+-- a simply-typed domain language
 --
 -- It uses Agda-flat
 module internalCCC where
@@ -60,7 +61,6 @@ var {gamma} {a} = λ x ->  snd x
 
 -- Inductive definition of all projections
 data Proj : (gamma : obj) -> (a : obj) -> (gamma ⊢ a) -> Set where
-  Psingleton : (a : obj) -> Proj a a (λ x -> x)
   Pfst : (gamma : obj) -> (b a : obj) -> (f : _) ->
          Proj gamma a f ->
          Proj (times gamma b) a (λ x -> f (fst x))
